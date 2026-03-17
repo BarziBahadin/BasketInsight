@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <title>Market Basket Analysis</title>
+</head>
+<body>
+    <header class="navbar">
+        <div class="navbar-inner">
+            <div class="navbar-brand">
+                <span class="brand-icon">&#9783;</span>
+                <span>Basket<strong>Insight</strong></span>
+            </div>
+        </div>
+    </header>
+
+    <main class="page-center">
+        <div class="upload-card">
+            <div class="upload-card__header">
+                <h1>Market Basket Analysis</h1>
+                <p>Upload your transaction data and discover hidden product associations using the Apriori algorithm.</p>
+            </div>
+
+            {% if error %}
+            <div class="alert alert--error">
+                <span class="alert__icon">&#9888;</span> {{ error }}
+            </div>
+            {% endif %}
+
+            <form action="/" method="post" enctype="multipart/form-data"
+                  class="upload-form" id="uploadForm">
+                {{ form.csrf_token }}
+
+                <!-- Drag & Drop Zone -->
+                <div class="drop-zone" id="dropZone">
+                    <div class="drop-zone__icon">&#128196;</div>
+                    <p class="drop-zone__title">Drag &amp; drop your CSV file here</p>
+                    <p class="drop-zone__sub">or click to browse</p>
+                    <p class="drop-zone__filename" id="fileName">No file selected</p>
+                    {{ form.file(class_='drop-zone__input', accept='.csv', id='fileInput') }}
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        {{ form.min_support.label }}
+                        {{ form.min_support(class_='form-input', placeholder='e.g. 5') }}
+                        <span class="field-hint">Min % of transactions an itemset must appear in</span>
+                        {% if form.min_support.errors %}
+                        <span class="field-error">{{ form.min_support.errors[0] }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="form-group">
+                        {{ form.min_confidence.label }}
+                        {{ form.min_confidence(class_='form-input', placeholder='e.g. 70') }}
+                        <span class="field-hint">Min % confidence for a rule to be included</span>
+                        {% if form.min_confidence.errors %}
+                        <span class="field-error">{{ form.min_confidence.errors[0] }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-full" id="submitBtn">
+                    &#128269; Run Analysis
+                </button>
+            </form>
+
+            <div class="demo-divider">
+                <span>or</span>
+            </div>
+            <a href="/demo" class="btn btn-outline btn-full" id="demoBtn">
+                &#9654; Try with Demo Dataset
+            </a>
+
+            <div id="loading" class="loading-state" style="display:none;">
+                <div class="spinner"></div>
+                <p>Analyzing your data — this may take a moment...</p>
+            </div>
+
+            <div class="format-hint">
+                <p><strong>Expected CSV format</strong> — no headers, one transaction per row:</p>
+                <pre>milk, bread, eggs
+bread, butter, jam
+milk, eggs, sugar, flour</pre>
+            </div>
+        </div>
+
+        <!-- Analysis History -->
+        {% if history %}
+        <div class="info-card">
+            <h2 class="info-card__title">Recent Analyses</h2>
+            <div class="history-list">
+                {% for entry in history %}
+                <div class="history-row">
+                    <div class="history-row__meta">
+                        <span class="history-row__file">{{ entry.filename }}</span>
+                        <span class="history-row__time">{{ entry.timestamp }}</span>
+                    </div>
+                    <div class="history-row__params">
+                        Support {{ entry.min_support }}% &middot; Confidence {{ entry.min_confidence }}% &middot;
+                        <strong>{{ entry.num_rules }} rules</strong>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- What is MBA -->
+        <div class="info-card">
+            <h2 class="info-card__title">What is Market Basket Analysis?</h2>
+            <p class="info-card__body">
+                Market Basket Analysis (MBA) is a data mining technique that finds products or items that
+                frequently appear together in the same transaction. It uses the <strong>Apriori algorithm</strong>
+                to discover <em>association rules</em> — patterns of the form
+                <span class="rule-example">eggs &amp; milk &rarr; bread</span> — meaning "customers who buy
+                eggs and milk also tend to buy bread."
+            </p>
+            <p class="info-card__body">
+                These rules are used in retail for cross-selling, shelf placement, promotions, and inventory
+                planning. Each rule is evaluated with several statistical metrics so you can judge how strong
+                and reliable the association actually is.
+            </p>
+        </div>
+
+        <!-- Parameter guide -->
+        <div class="info-card">
+            <h2 class="info-card__title">Parameter Guide</h2>
+
+            <div class="param-grid">
+                <div class="param-block">
+                    <div class="param-block__name">Minimum Support (%)</div>
+                    <div class="param-block__def">How common must an itemset be across all transactions?</div>
+                    <p>Support measures what fraction of transactions contain a given set of items.
+                       A support of <strong>5%</strong> means the itemset appears in at least 5 out of
+                       every 100 transactions.</p>
+                    <ul>
+                        <li><strong>Lower</strong> → more rules found, slower analysis</li>
+                        <li><strong>Higher</strong> → only the most common patterns</li>
+                        <li>Typical starting range: <strong>2% – 10%</strong></li>
+                    </ul>
+                </div>
+
+                <div class="param-block">
+                    <div class="param-block__name">Minimum Confidence (%)</div>
+                    <div class="param-block__def">How reliable must a rule be?</div>
+                    <p>Confidence is the probability that the consequent (right side) is bought
+                       <em>given</em> the antecedent (left side) is already in the basket.
+                       A confidence of <strong>70%</strong> means: in 70% of transactions containing
+                       the antecedent, the consequent also appears.</p>
+                    <ul>
+                        <li><strong>Lower</strong> → more rules, including weak ones</li>
+                        <li><strong>Higher</strong> → only highly reliable rules</li>
+                        <li>Typical starting range: <strong>50% – 80%</strong></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metrics guide -->
+        <div class="info-card">
+            <h2 class="info-card__title">Understanding the Output Metrics</h2>
+            <p class="info-card__body" style="margin-bottom:1rem;">
+                Each rule has the form <span class="rule-example">Antecedent &rarr; Consequent</span>.
+                The table on the results page shows these metrics for every rule:
+            </p>
+
+            <div class="metrics-list">
+                <div class="metric-row">
+                    <span class="metric-name">Support</span>
+                    <span class="metric-desc">Fraction of all transactions that contain <em>both</em> sides of the rule. Higher = more common pattern.</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-name">Confidence</span>
+                    <span class="metric-desc">Probability the consequent is bought when the antecedent is bought. The mini-bar in the results table shows this visually.</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-name">Lift</span>
+                    <span class="metric-desc">
+                        How much more likely the consequent is bought with the antecedent vs. at random.
+                        <br>
+                        <strong>Lift &gt; 1</strong> = positive association &nbsp;|&nbsp;
+                        <strong>Lift = 1</strong> = no association &nbsp;|&nbsp;
+                        <strong>Lift &lt; 1</strong> = items avoid each other.
+                        Aim for <strong>Lift &ge; 1.5</strong> for actionable rules.
+                    </span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-name">Leverage</span>
+                    <span class="metric-desc">Co-occurrence above what you'd expect by chance. Positive = they appear together more than random. Ranges roughly -0.25 to 0.25.</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-name">Conviction</span>
+                    <span class="metric-desc">Strength of the directional dependency. Values above 1 indicate the rule is not a coincidence. Very high conviction (e.g., &gt;3) = very strong rule.</span>
+                </div>
+                <div class="metric-row">
+                    <span class="metric-name">Zhang's Metric</span>
+                    <span class="metric-desc">Balanced score from -1 to 1. Positive = items co-occur more than expected. Negative = items avoid each other. Near 0 = independent.</span>
+                </div>
+            </div>
+
+            <div class="tip-box">
+                <strong>Quick tip:</strong> Start with <strong>Support 2–5%</strong> and <strong>Confidence 50%</strong>
+                to see if rules exist, then raise thresholds to filter for quality.
+                Focus on rules where <strong>Lift &ge; 1.5</strong> — those are the genuinely useful associations.
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>BasketInsight &mdash; Powered by Apriori &amp; Flask</p>
+    </footer>
+
+    <script>
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length) {
+                fileName.textContent = fileInput.files[0].name;
+                dropZone.classList.add('drop-zone--has-file');
+            }
+        });
+
+        dropZone.addEventListener('dragover', e => {
+            e.preventDefault();
+            dropZone.classList.add('drop-zone--active');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drop-zone--active');
+        });
+
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropZone.classList.remove('drop-zone--active');
+            const files = e.dataTransfer.files;
+            if (files.length && files[0].name.endsWith('.csv')) {
+                const dt = new DataTransfer();
+                dt.items.add(files[0]);
+                fileInput.files = dt.files;
+                fileName.textContent = files[0].name;
+                dropZone.classList.add('drop-zone--has-file');
+            } else {
+                alert('Please drop a CSV file.');
+            }
+        });
+
+        document.getElementById('uploadForm').addEventListener('submit', function () {
+            document.getElementById('submitBtn').disabled = true;
+            document.getElementById('loading').style.display = 'flex';
+        });
+    </script>
+</body>
+</html>

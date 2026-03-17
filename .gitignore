@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+app/uploads/*.csv
+app/static/results.csv
+*.egg-info/
+.venv/
+venv/
+.claude

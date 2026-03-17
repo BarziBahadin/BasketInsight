@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <title>Analysis Results — BasketInsight</title>
+</head>
+<body>
+    <header class="navbar">
+        <div class="navbar-inner">
+            <a href="/" class="navbar-brand">
+                <span class="brand-icon">&#9783;</span>
+                <span>Basket<strong>Insight</strong></span>
+            </a>
+            <nav class="navbar-actions">
+                <a href="/download" class="btn btn-outline btn-sm" title="Export as Excel">&#8681; Excel</a>
+                <a href="/download/csv" class="btn btn-outline btn-sm" title="Export as CSV">&#8681; CSV</a>
+                <a href="/download/json" class="btn btn-outline btn-sm" title="Export as JSON">&#8681; JSON</a>
+                <a href="/" class="btn btn-ghost btn-sm">&#8592; New Analysis</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="page-main">
+
+        <!-- Rerun / Adjust Parameters -->
+        {% if has_file %}
+        <section class="rerun-bar">
+            <form method="post" action="/rerun" class="rerun-form">
+                <span class="rerun-bar__label">Adjust thresholds &amp; re-run:</span>
+                <div class="rerun-fields">
+                    <label class="rerun-field">
+                        <span>Support&nbsp;%</span>
+                        <input type="number" name="min_support" step="0.01" min="0.01" max="100"
+                               value="{{ last_support }}" class="form-input form-input--sm">
+                    </label>
+                    <label class="rerun-field">
+                        <span>Confidence&nbsp;%</span>
+                        <input type="number" name="min_confidence" step="0.01" min="0" max="100"
+                               value="{{ last_confidence }}" class="form-input form-input--sm">
+                    </label>
+                    <button type="submit" class="btn btn-primary btn-sm">&#8635; Re-run</button>
+                </div>
+                {% if rerun_error %}<span class="field-error">{{ rerun_error }}</span>{% endif %}
+            </form>
+        </section>
+        {% endif %}
+
+        <!-- Dataset Stats -->
+        {% if dataset_stats %}
+        <section class="dataset-stats">
+            <div class="dataset-stats__item">
+                <span class="dataset-stats__label">Transactions</span>
+                <span class="dataset-stats__value">{{ dataset_stats.num_transactions | int }}</span>
+            </div>
+            <div class="dataset-stats__item">
+                <span class="dataset-stats__label">Unique Items</span>
+                <span class="dataset-stats__value">{{ dataset_stats.unique_items }}</span>
+            </div>
+            <div class="dataset-stats__item">
+                <span class="dataset-stats__label">Avg Basket Size</span>
+                <span class="dataset-stats__value">{{ dataset_stats.avg_basket }}</span>
+            </div>
+            <div class="dataset-stats__item dataset-stats__item--wide">
+                <span class="dataset-stats__label">Most Frequent Items</span>
+                <span class="dataset-stats__value dataset-stats__tags">
+                    {% for item in dataset_stats.top_items %}
+                    <span class="item-tag">{{ item }}</span>
+                    {% endfor %}
+                </span>
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- KPI Summary Row -->
+        <section class="kpi-row">
+            <div class="kpi-card">
+                <span class="kpi-card__label">Total Rules</span>
+                <span class="kpi-card__value">{{ stats.total_rules }}</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-card__label">Avg Confidence</span>
+                <span class="kpi-card__value">{{ stats.avg_confidence }}<small>%</small></span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-card__label">Avg Lift</span>
+                <span class="kpi-card__value">{{ stats.avg_lift }}</span>
+            </div>
+            <div class="kpi-card kpi-card--accent">
+                <span class="kpi-card__label">Max Lift</span>
+                <span class="kpi-card__value">{{ stats.max_lift }}</span>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-card__label">Avg Support</span>
+                <span class="kpi-card__value">{{ stats.avg_support }}<small>%</small></span>
+            </div>
+        </section>
+
+        <!-- Charts -->
+        {% if chart_bar or chart_scatter %}
+        <section class="charts-section">
+            <div class="section-title">Visualizations</div>
+            <div class="charts-row">
+                {% if chart_bar %}
+                <div class="chart-box">{{ chart_bar | safe }}</div>
+                {% endif %}
+                {% if chart_scatter %}
+                <div class="chart-box">{{ chart_scatter | safe }}</div>
+                {% endif %}
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Network Graph -->
+        {% if chart_network %}
+        <section class="charts-section">
+            <div class="section-title">Item Association Network</div>
+            <div class="chart-box chart-box--full">{{ chart_network | safe }}</div>
+        </section>
+        {% endif %}
+
+        <!-- Filter + Search + Table -->
+        <section class="table-section">
+
+            <!-- Metric Filters -->
+            <details class="filter-panel" {% if filters.min_lift or filters.max_lift or filters.min_conf or filters.max_conf or filters.min_sup %}open{% endif %}>
+                <summary class="filter-panel__toggle">&#9881; Filter by Metrics</summary>
+                <form method="get" action="/results" class="filter-form" id="filterForm">
+                    <input type="hidden" name="search" value="{{ query }}">
+                    <input type="hidden" name="page" value="1">
+                    <div class="filter-row">
+                        <label class="filter-field">
+                            <span>Min Lift</span>
+                            <input type="number" name="min_lift" step="0.01" min="0"
+                                   value="{{ filters.min_lift }}" placeholder="e.g. 1.5" class="form-input form-input--sm">
+                        </label>
+                        <label class="filter-field">
+                            <span>Max Lift</span>
+                            <input type="number" name="max_lift" step="0.01" min="0"
+                                   value="{{ filters.max_lift }}" placeholder="e.g. 5.0" class="form-input form-input--sm">
+                        </label>
+                        <label class="filter-field">
+                            <span>Min Confidence</span>
+                            <input type="number" name="min_conf" step="0.01" min="0" max="1"
+                                   value="{{ filters.min_conf }}" placeholder="e.g. 0.5" class="form-input form-input--sm">
+                        </label>
+                        <label class="filter-field">
+                            <span>Max Confidence</span>
+                            <input type="number" name="max_conf" step="0.01" min="0" max="1"
+                                   value="{{ filters.max_conf }}" placeholder="e.g. 1.0" class="form-input form-input--sm">
+                        </label>
+                        <label class="filter-field">
+                            <span>Min Support</span>
+                            <input type="number" name="min_sup" step="0.001" min="0"
+                                   value="{{ filters.min_sup }}" placeholder="e.g. 0.02" class="form-input form-input--sm">
+                        </label>
+                        <div class="filter-actions">
+                            <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+                            <a href="/results" class="btn btn-outline btn-sm">Reset</a>
+                        </div>
+                    </div>
+                </form>
+            </details>
+
+            <div class="table-toolbar">
+                <div class="table-toolbar__title">
+                    Association Rules
+                    {% if total > shown %}
+                    <span class="badge">Showing {{ shown }} of {{ total }}</span>
+                    {% else %}
+                    <span class="badge badge--green">{{ total }} rules</span>
+                    {% endif %}
+                </div>
+                <form method="get" action="/results" class="search-form" id="searchForm">
+                    <input type="hidden" name="min_lift" value="{{ filters.min_lift }}">
+                    <input type="hidden" name="max_lift" value="{{ filters.max_lift }}">
+                    <input type="hidden" name="min_conf" value="{{ filters.min_conf }}">
+                    <input type="hidden" name="max_conf" value="{{ filters.max_conf }}">
+                    <input type="hidden" name="min_sup" value="{{ filters.min_sup }}">
+                    <div class="search-wrap">
+                        <span class="search-icon">&#128269;</span>
+                        <input type="text" name="search" id="searchInput"
+                               placeholder="Search antecedents, consequents..." value="{{ query }}">
+                        {% if query %}
+                        <a href="/results" class="search-clear" title="Clear search">&times;</a>
+                        {% endif %}
+                    </div>
+                    <input type="hidden" name="page" value="1">
+                </form>
+            </div>
+
+            {% if records %}
+            <div class="table-wrap">
+                <table id="resultsTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0,'text')" class="sortable col-item" title="Items on the left side of the rule — the items that trigger the association">Antecedents &#8597;</th>
+                            <th onclick="sortTable(1,'text')" class="sortable col-item" title="Items on the right side of the rule — the items predicted to be bought together with the antecedents">Consequents &#8597;</th>
+                            <th onclick="sortTable(2,'number')" class="sortable col-num" title="Fraction of all transactions containing both antecedent and consequent. Higher = more common pattern.">Support &#8597;</th>
+                            <th onclick="sortTable(3,'number')" class="sortable col-num" title="Probability the consequent is bought given the antecedent is bought. Higher = more reliable rule.">Confidence &#8597;</th>
+                            <th onclick="sortTable(4,'number')" class="sortable col-num" title="How much more likely the consequent is bought with the antecedent vs. at random. Lift > 1 = positive association. Aim for ≥ 1.5.">Lift &#8597;</th>
+                            <th onclick="sortTable(5,'number')" class="sortable col-num" title="Co-occurrence above chance expectation. Positive = items appear together more than random.">Leverage &#8597;</th>
+                            <th onclick="sortTable(6,'number')" class="sortable col-num" title="Directional dependency strength. Values > 1 mean the rule is not coincidental. Very high (>3) = very strong.">Conviction &#8597;</th>
+                            <th onclick="sortTable(7,'number')" class="sortable col-num" title="Balanced score from -1 to 1. Positive = co-occur more than expected. Negative = items avoid each other.">Zhang's &#8597;</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in records %}
+                        <tr class="{% if loop.index is odd %}row-odd{% else %}row-even{% endif %}">
+                            <td class="cell-item">{{ record['antecedents'] }}</td>
+                            <td class="cell-item">{{ record['consequents'] }}</td>
+                            <td class="cell-num">{{ record['support'] }}</td>
+                            <td class="cell-num">
+                                <span class="conf-bar" style="--pct: {{ (record['confidence'] * 100)|int }}%">
+                                    {{ record['confidence'] }}
+                                </span>
+                            </td>
+                            <td class="cell-num">
+                                <span class="lift-chip {% if record['lift'] >= 2 %}lift-high{% elif record['lift'] >= 1.5 %}lift-mid{% else %}lift-low{% endif %}">
+                                    {{ record['lift'] }}
+                                </span>
+                            </td>
+                            <td class="cell-num">{{ record['leverage'] }}</td>
+                            <td class="cell-num">{{ record['conviction'] }}</td>
+                            <td class="cell-num">{{ record['zhangs_metric'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if total_pages > 1 %}
+            <div class="pagination">
+                {% if page > 1 %}
+                <a href="/results?page={{ page - 1 }}&search={{ query }}&min_lift={{ filters.min_lift }}&max_lift={{ filters.max_lift }}&min_conf={{ filters.min_conf }}&max_conf={{ filters.max_conf }}&min_sup={{ filters.min_sup }}" class="btn btn-outline btn-sm">&#8592; Prev</a>
+                {% else %}
+                <span class="btn btn-outline btn-sm btn-disabled">&#8592; Prev</span>
+                {% endif %}
+
+                <span class="pagination__info">Page {{ page }} of {{ total_pages }}</span>
+
+                {% if page < total_pages %}
+                <a href="/results?page={{ page + 1 }}&search={{ query }}&min_lift={{ filters.min_lift }}&max_lift={{ filters.max_lift }}&min_conf={{ filters.min_conf }}&max_conf={{ filters.max_conf }}&min_sup={{ filters.min_sup }}" class="btn btn-outline btn-sm">Next &#8594;</a>
+                {% else %}
+                <span class="btn btn-outline btn-sm btn-disabled">Next &#8594;</span>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state__icon">&#128202;</div>
+                <p>No rules match your filters or search.</p>
+                <a href="/results" class="btn btn-outline btn-sm">Clear all filters</a>
+            </div>
+            {% endif %}
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>BasketInsight &mdash; Powered by Apriori &amp; Flask</p>
+    </footer>
+
+    <script>
+        // Live search on input with debounce
+        let debounceTimer;
+        document.getElementById('searchInput').addEventListener('input', function () {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                document.getElementById('searchForm').submit();
+            }, 500);
+        });
+
+        // Column sort
+        function sortTable(colIndex, dataType) {
+            const tbody = document.querySelector('#resultsTable tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const currentCol = tbody.dataset.sortCol;
+            const currentDir = tbody.dataset.sortDir;
+            const asc = (currentCol == colIndex && currentDir === 'asc') ? false : true;
+
+            rows.sort((a, b) => {
+                const x = a.cells[colIndex].textContent.trim();
+                const y = b.cells[colIndex].textContent.trim();
+                if (dataType === 'number') {
+                    return asc ? parseFloat(x) - parseFloat(y) : parseFloat(y) - parseFloat(x);
+                }
+                return asc ? x.localeCompare(y) : y.localeCompare(x);
+            });
+
+            document.querySelectorAll('th.sortable').forEach(th => th.classList.remove('sorted-asc', 'sorted-desc'));
+            const allTh = document.querySelectorAll('#resultsTable th');
+            allTh[colIndex].classList.add(asc ? 'sorted-asc' : 'sorted-desc');
+
+            tbody.dataset.sortCol = colIndex;
+            tbody.dataset.sortDir = asc ? 'asc' : 'desc';
+            rows.forEach(r => tbody.appendChild(r));
+        }
+    </script>
+</body>
+</html>

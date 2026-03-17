@@ -1,0 +1,10 @@
+flask>=2.0
+flask-wtf
+wtforms
+pandas
+numpy
+mlxtend
+plotly
+openpyxl
+scikit-learn
+werkzeug
