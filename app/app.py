@@ -33,9 +33,9 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 class UploadForm(FlaskForm):
     file = FileField('CSV File', validators=[DataRequired()])
-    min_support = DecimalField('Minimum Support (%)', default=10.0,
+    min_support = DecimalField('Minimum Support (%)', default=2.0,
                                validators=[DataRequired(), NumberRange(min=0.01, max=100.0)])
-    min_confidence = DecimalField('Minimum Confidence (%)', default=70.0,
+    min_confidence = DecimalField('Minimum Confidence (%)', default=20.0,
                                   validators=[DataRequired(), NumberRange(min=0.0, max=100.0)])
     submit = SubmitField('Analyze')
 
@@ -94,7 +94,7 @@ def read_and_analyze(file_path, min_support, min_confidence):
     rules = association_rules(frequent_itemsets, metric="confidence", min_threshold=min_confidence / 100)
 
     if rules.empty:
-        return None, None, "No rules found. Try lowering minimum confidence."
+        return None, None, "No rules found. Try lowering minimum support (e.g. 1–2%) and/or minimum confidence."
 
     denom = 1 - rules['consequent support']
     rules['zhangs_metric'] = np.where(denom == 0, np.nan, rules['lift'] / denom - 1)
